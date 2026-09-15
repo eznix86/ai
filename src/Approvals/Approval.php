@@ -5,29 +5,32 @@ namespace Laravel\Ai\Approvals;
 class Approval
 {
     /**
-     * @param  array<string, mixed>|null  $ui
+     * @param  array<string, mixed>|null  $meta
      */
     public function __construct(
         public readonly ?string $reason = null,
-        public readonly ?array $ui = null,
+        public readonly ?array $meta = null,
+        public readonly bool $interactive = false,
     ) {}
 
     /**
-     * Create a required approval, answered with an approval or a rejection.
+     * Create a required approval, optionally carrying a payload for the client to render.
+     *
+     * @param  array<string, mixed>|null  $meta
      */
-    public static function required(?string $reason = null): self
+    public static function required(?string $reason = null, ?array $meta = null): self
     {
-        return new self($reason);
+        return new self($reason, $meta);
     }
 
     /**
-     * Create an approval carrying a payload for the client, answered with a submission.
+     * Create a pause carrying a payload for the client, answered with a submission rather than an approval.
      *
-     * @param  array<string, mixed>  $ui
+     * @param  array<string, mixed>  $meta
      */
-    public static function input(array $ui, ?string $reason = null): self
+    public static function input(array $meta): self
     {
-        return new self($reason, $ui);
+        return new self(null, $meta, interactive: true);
     }
 
     /**
@@ -35,6 +38,6 @@ class Approval
      */
     public function isInteractive(): bool
     {
-        return $this->ui !== null;
+        return $this->interactive;
     }
 }

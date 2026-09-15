@@ -70,7 +70,7 @@ trait CanStreamUsingVercelProtocol
                                 'toolCallId' => $pendingApproval->id,
                                 'approvalId' => $pendingApproval->id,
                                 'reason' => $pendingApproval->reason,
-                                ...($pendingApproval->ui === null ? [] : ['approvalDescriptor' => $pendingApproval->ui]),
+                                ...($pendingApproval->meta === null ? [] : ['approvalDescriptor' => $pendingApproval->meta]),
                             ]);
                         }
 

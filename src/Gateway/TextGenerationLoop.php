@@ -407,7 +407,7 @@ class TextGenerationLoop
                     $toolCall->name,
                     $toolCall->arguments,
                     $approval->reason,
-                    $approval->ui,
+                    $approval->meta,
                 ));
 
                 continue;
@@ -433,10 +433,10 @@ class TextGenerationLoop
                 $toolCall->id,
                 $toolCall->name,
                 $toolCall->arguments,
-                (string) $result->text,
+                (string) $result,
                 $toolCall->resultId,
                 failed: ! $tool instanceof Tool || $isFinalStep,
-                ui: $result->ui,
+                meta: $result->meta,
             );
         }, $resolved);
 
@@ -538,10 +538,10 @@ class TextGenerationLoop
                 $toolCall->id,
                 $toolCall->name,
                 $arguments,
-                (string) $result->text,
+                (string) $result,
                 $toolCall->resultId,
                 failed: $failed,
-                ui: $result->ui,
+                meta: $result->meta,
             );
         }
 
@@ -630,10 +630,8 @@ class TextGenerationLoop
     {
         $request = new Request($toolCall->arguments, $toolCall->id);
 
-        if ($tool instanceof Interactive) {
-            $ui = $tool->ask($request);
-
-            return $ui === null ? null : Approval::input($ui);
+        if ($tool instanceof Interactive && ($meta = $tool->ask($request)) !== null) {
+            return Approval::input($meta);
         }
 
         return $tool instanceof Approvable
