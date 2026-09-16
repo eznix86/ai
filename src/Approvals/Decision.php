@@ -89,12 +89,8 @@ class Decision
                 default => throw new InvalidArgumentException('Tool approval decisions must be Decision instances or booleans.'),
             };
 
-            if ($id === '*' && $decision->isEdited()) {
-                throw new InvalidArgumentException('The wildcard decision may not use the edit action.');
-            }
-
-            if ($id === '*' && $decision->isSubmitted()) {
-                throw new InvalidArgumentException('The wildcard decision may not use the submit action.');
+            if ($id === '*' && ($decision->isEdited() || $decision->isSubmitted())) {
+                throw new InvalidArgumentException('The wildcard decision may only approve or reject.');
             }
 
             $normalized[$id] = $decision;

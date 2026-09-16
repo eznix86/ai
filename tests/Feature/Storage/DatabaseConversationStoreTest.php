@@ -256,9 +256,11 @@ test('it keeps the payload of the calls still pending after another is resolved'
     ]);
 
     $pending = $store->pendingApprovalsFor($conversationId);
+    $state = json_decode(DB::table('agent_conversation_messages')->where('id', 'message-001')->value('approval_state'), true);
 
     expect(collect($pending)->pluck('id')->all())->toBe(['call-2'])
-        ->and($pending[0]->meta)->toBe(['options' => ['Home']]);
+        ->and($pending[0]->meta)->toBe(['options' => ['Home']])
+        ->and($state['meta'])->toBe(['call-2' => ['options' => ['Home']]]);
 });
 
 test('it persists the payload of a paused interactive turn from a remembered agent prompt', function (): void {

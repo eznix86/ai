@@ -483,15 +483,15 @@ class DatabaseConversationStore implements ConversationStore, PaginatesConversat
                 collect($toolResults)->reject(fn (ToolResult $result) => $existing->contains('id', $result->id))
             );
 
-            $state = (array) json_decode($row->approval_state ?? 'null', true);
-            $pending = collect($state['pending'] ?? [])->except($resultIds);
+            $state = collect((array) json_decode($row->approval_state ?? 'null', true))
+                ->map(fn (array $byToolCall) => collect($byToolCall)->except($resultIds)->all());
 
             // Keep the marker after resolution so the resume dedup scan stays bounded to ever-paused rows, while each call's outcome lives in the merged tool results...
             $this->table($this->messagesTable())
                 ->where('id', $row->id)
                 ->update([
                     'tool_results' => $merged->values()->toJson(),
-                    'approval_state' => json_encode([...$state, 'pending' => $pending->all()]),
+                    'approval_state' => $state->toJson(),
                     'updated_at' => now(),
                 ]);
         });

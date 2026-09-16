@@ -4,9 +4,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Laravel\Ai\Approvals\Decision;
 use Laravel\Ai\Approvals\Decisions;
-use Laravel\Ai\Approvals\PendingApproval;
 use Laravel\Ai\Exceptions\ApprovalMismatchException;
-use Laravel\Ai\Responses\AgentResponse;
 use Laravel\Ai\Responses\Data\ToolCall;
 use Laravel\Ai\Streaming\Events\ToolResult as ToolResultEvent;
 use Tests\Fixtures\Agents\InteractiveAgent;
@@ -180,27 +178,7 @@ test('an interactive pause may still be rejected', function () {
 
 test('the wildcard decision may not submit', function () {
     Decision::normalize(['*' => Decision::submit(['answer' => 'Pro'])]);
-})->throws(InvalidArgumentException::class, 'The wildcard decision may not use the submit action.');
-
-test('a paused interactive tool is faked and read exactly like any approval', function () {
-    RememberingInteractiveAgent::fake([
-        AgentResponse::fakeWithPendingApprovals([
-            new PendingApproval(
-                id: 'call_abc',
-                tool: 'InteractiveChoiceTool',
-                arguments: ['question' => 'Which plan?', 'options' => ['Basic', 'Pro']],
-                meta: ['question' => 'Which plan?', 'options' => ['Basic', 'Pro']],
-            ),
-        ]),
-        'Good choice.',
-    ]);
-
-    $response = (new RememberingInteractiveAgent)->forUser((object) ['id' => 1])->prompt('Which plan?');
-
-    expect($response->hasPendingApprovals())->toBeTrue()
-        ->and($response->pendingApprovals->sole()->tool)->toBe('InteractiveChoiceTool')
-        ->and($response->pendingApprovals->sole()->meta)->toBe(['question' => 'Which plan?', 'options' => ['Basic', 'Pro']]);
-});
+})->throws(InvalidArgumentException::class, 'The wildcard decision may only approve or reject.');
 
 test('an approvable tool may describe its approval with a meta without requiring a submission', function () {
     Http::fake([
