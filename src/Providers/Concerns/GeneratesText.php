@@ -32,6 +32,7 @@ use Laravel\Ai\Responses\TextResponse;
 use Laravel\Ai\Tools\AgentTool;
 use Laravel\Ai\Tools\McpServerTool;
 use Laravel\Ai\Tools\McpTool;
+use Laravel\Ai\Tools\ToolSelectionContext;
 use Laravel\Ai\Tools\ToolSelector;
 use Throwable;
 
@@ -64,6 +65,8 @@ trait GeneratesText
                         ...($agent instanceof Conversational ? $agent->messages() : []),
                     ]);
 
+                    $toolSelectionMessages = $messages;
+
                     if (! $prompt->hasApprovalDecisions()) {
                         $messages[] = new UserMessage($prompt->prompt, $prompt->attachments->all());
                     }
@@ -75,7 +78,7 @@ trait GeneratesText
                         $prompt->model,
                         (string) $agent->instructions(),
                         $messages,
-                        $this->resolveTools($prompt),
+                        $this->resolveTools($prompt, $toolSelectionMessages),
                         $schema,
                         TextGenerationOptions::forAgent($agent),
                         $prompt->timeout,
@@ -160,13 +163,13 @@ trait GeneratesText
     /**
      * Resolve the tools for the given prompt, wrapping any agent instances as tools.
      */
-    protected function resolveTools(AgentPrompt $prompt): array
+    protected function resolveTools(AgentPrompt $prompt, array $messages = []): array
     {
         $tools = $prompt->tools
             ?? ($prompt->agent instanceof HasTools ? [...$prompt->agent->tools()] : []);
 
         return array_map(
-            fn ($tool) => $this->resolveTool($tool, $prompt->prompt),
+            fn ($tool) => $this->resolveTool($tool, new ToolSelectionContext($prompt->agent, $prompt->prompt, $messages)),
             $tools,
         );
     }
@@ -174,7 +177,7 @@ trait GeneratesText
     /**
      * Resolve a tool returned by the agent into a native tool instance when needed.
      */
-    protected function resolveTool(mixed $tool, string|array|null $state = null): mixed
+    protected function resolveTool(mixed $tool, string|array|ToolSelectionContext|null $state = null): mixed
     {
         return match (true) {
             $tool instanceof Agent => new AgentTool($tool),

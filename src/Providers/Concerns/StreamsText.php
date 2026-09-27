@@ -55,11 +55,13 @@ trait StreamsText
                         ...($agent instanceof Conversational ? $agent->messages() : []),
                     ]);
 
+                    $toolSelectionMessages = $messages;
+
                     if (! $prompt->hasApprovalDecisions()) {
                         $messages[] = new UserMessage($prompt->prompt, $prompt->attachments->all());
                     }
 
-                    $tools = $this->resolveTools($prompt);
+                    $tools = $this->resolveTools($prompt, $toolSelectionMessages);
                     $approval = $this->resumableApprovalFor($prompt);
                     $recordApprovalResults = $this->approvalResultRecorderFor($prompt, $resolvedApprovalResults);
 

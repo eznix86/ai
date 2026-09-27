@@ -24,6 +24,10 @@ final class ToolSelector
     /** @var array<string, mixed>|SerializableClosure */
     protected array|SerializableClosure $providerOptions = [];
 
+    protected ?int $conversationTurns = null;
+
+    protected ?SerializableClosure $stateResolver = null;
+
     /**
      * @param  array<Tool>  $tools
      * @param  string|array<string, mixed>  $instructions
@@ -72,8 +76,31 @@ final class ToolSelector
         return $this;
     }
 
-    public function select(string|array $state): Tool
+    public function withConversationContext(int $turns = 1): self
     {
+        if ($turns < 1 || $turns > 5) {
+            throw new InvalidArgumentException('Conversation context must contain between one and five turns.');
+        }
+
+        $this->conversationTurns = $turns;
+        $this->stateResolver = null;
+
+        return $this;
+    }
+
+    /** @param  Closure(ToolSelectionContext): (string|array<string, mixed>)  $resolver */
+    public function withState(Closure $resolver): self
+    {
+        $this->stateResolver = new SerializableClosure($resolver);
+        $this->conversationTurns = null;
+
+        return $this;
+    }
+
+    public function select(string|array|ToolSelectionContext $state): Tool
+    {
+        $state = $this->resolveState($state);
+
         $classification = Classification::of($state)
             ->question('tool', new Choice($this->instructions, $this->options()))
             ->timeout($this->timeout);
@@ -99,6 +126,23 @@ final class ToolSelector
         }
 
         throw new InvalidArgumentException("Classification selected an unknown tool [{$answer->choice}].");
+    }
+
+    protected function resolveState(string|array|ToolSelectionContext $state): string|array
+    {
+        if (! $state instanceof ToolSelectionContext) {
+            return $state;
+        }
+
+        if ($this->stateResolver instanceof SerializableClosure) {
+            return ($this->stateResolver)($state);
+        }
+
+        if ($this->conversationTurns !== null) {
+            return $state->stateWithConversation($this->conversationTurns);
+        }
+
+        return $state->prompt;
     }
 
     /**
