@@ -41,6 +41,7 @@ use Laravel\Ai\Responses\QueuedAgentResponse;
 use Laravel\Ai\Responses\StreamableAgentResponse;
 use Laravel\Ai\Responses\StreamedAgentResponse;
 use Laravel\Ai\Streaming\Events\StreamEvent;
+use Laravel\Ai\Tools\ToolSelector;
 use Laravel\Ai\Vercel\Vercel;
 use Laravel\SerializableClosure\SerializableClosure;
 use LogicException;
@@ -352,7 +353,7 @@ trait Promptable
     /**
      * Replace the agent's declared tools for this instance.
      *
-     * @param  (Closure(array<int, Agent|Tool|ProviderTool>): iterable<int, Agent|Tool|ProviderTool>)|iterable<int, Agent|Tool|ProviderTool>  $tools
+     * @param  (Closure(array<int, Agent|Tool|ProviderTool|ToolSelector>): iterable<int, Agent|Tool|ProviderTool|ToolSelector>)|iterable<int, Agent|Tool|ProviderTool|ToolSelector>  $tools
      */
     public function withTools(Closure|iterable $tools): static
     {
@@ -370,7 +371,7 @@ trait Promptable
     /**
      * Resolve the runtime tools for the next invocation, or null when the agent's declared tools apply.
      *
-     * @return array<int, Agent|Tool|ProviderTool>|null
+     * @return array<int, Agent|Tool|ProviderTool|ToolSelector>|null
      */
     protected function resolveAgentTools(): ?array
     {
@@ -382,7 +383,7 @@ trait Promptable
     /**
      * Get the tools the agent declares via its own tools method.
      *
-     * @return array<int, Agent|Tool|ProviderTool>
+     * @return array<int, Agent|Tool|ProviderTool|ToolSelector>
      */
     private function declaredTools(): array
     {

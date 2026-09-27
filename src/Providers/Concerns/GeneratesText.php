@@ -5,6 +5,7 @@ namespace Laravel\Ai\Providers\Concerns;
 use Closure;
 use Illuminate\JsonSchema\JsonSchemaTypeFactory;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use Laravel\Ai\Ai;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\Conversational;
@@ -31,6 +32,7 @@ use Laravel\Ai\Responses\TextResponse;
 use Laravel\Ai\Tools\AgentTool;
 use Laravel\Ai\Tools\McpServerTool;
 use Laravel\Ai\Tools\McpTool;
+use Laravel\Ai\Tools\ToolSelector;
 use Throwable;
 
 use function Laravel\Ai\pipeline;
@@ -164,7 +166,7 @@ trait GeneratesText
             ?? ($prompt->agent instanceof HasTools ? [...$prompt->agent->tools()] : []);
 
         return array_map(
-            fn ($tool) => $this->resolveTool($tool),
+            fn ($tool) => $this->resolveTool($tool, $prompt->prompt),
             $tools,
         );
     }
@@ -172,14 +174,15 @@ trait GeneratesText
     /**
      * Resolve a tool returned by the agent into a native tool instance when needed.
      */
-    protected function resolveTool(mixed $tool): mixed
+    protected function resolveTool(mixed $tool, string|array|null $state = null): mixed
     {
         return match (true) {
             $tool instanceof Agent => new AgentTool($tool),
             $tool instanceof Tool => $tool,
             $tool instanceof ToolSearch => $tool->withTools(
-                array_map(fn ($nested) => $this->resolveTool($nested), $tool->tools),
+                array_map(fn ($nested) => $this->resolveTool($nested, $state), $tool->tools),
             ),
+            $tool instanceof ToolSelector => $tool->select($state ?? throw new InvalidArgumentException('Tool selection requires state.')),
             McpTool::supports($tool) => new McpTool($tool),
             McpServerTool::supports($tool) => new McpServerTool($tool),
             default => $tool,

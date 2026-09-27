@@ -12,6 +12,7 @@ use Laravel\Ai\Exceptions\FailoverableException;
 use Laravel\Ai\Gateway\RunContext;
 use Laravel\Ai\Messages\Message;
 use Laravel\Ai\Providers\Tools\ProviderTool;
+use Laravel\Ai\Tools\ToolSelector;
 use Throwable;
 
 class AgentPrompt extends Prompt
@@ -30,7 +31,7 @@ class AgentPrompt extends Prompt
     /**
      * The tools available for this run, or null to use the tools the agent declares.
      *
-     * @var array<int, Agent|Tool|ProviderTool>|null
+     * @var array<int, Agent|Tool|ProviderTool|ToolSelector>|null
      */
     public readonly ?array $tools;
 
@@ -134,7 +135,7 @@ class AgentPrompt extends Prompt
     /**
      * Replace the tools for this run, returning a new prompt instance.
      *
-     * @param  iterable<int, Tool|ProviderTool|Agent>  $tools
+     * @param  iterable<int, Tool|ProviderTool|Agent|ToolSelector>  $tools
      */
     public function withTools(iterable $tools): AgentPrompt
     {
