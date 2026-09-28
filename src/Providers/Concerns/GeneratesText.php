@@ -5,7 +5,6 @@ namespace Laravel\Ai\Providers\Concerns;
 use Closure;
 use Illuminate\JsonSchema\JsonSchemaTypeFactory;
 use Illuminate\Support\Str;
-use InvalidArgumentException;
 use Laravel\Ai\Ai;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\Conversational;
@@ -21,6 +20,8 @@ use Laravel\Ai\Events\ToolApprovalResolved;
 use Laravel\Ai\Exceptions\ApprovalNotResumableException;
 use Laravel\Ai\Gateway\RunContext;
 use Laravel\Ai\Gateway\TextGenerationOptions;
+use Laravel\Ai\Messages\AssistantMessage;
+use Laravel\Ai\Messages\Message;
 use Laravel\Ai\Messages\UserMessage;
 use Laravel\Ai\Middleware\RememberConversation;
 use Laravel\Ai\Prompts\AgentPrompt;
@@ -168,24 +169,50 @@ trait GeneratesText
         $tools = $prompt->tools
             ?? ($prompt->agent instanceof HasTools ? [...$prompt->agent->tools()] : []);
 
-        return array_map(
-            fn ($tool) => $this->resolveTool($tool, new ToolSelectionContext($prompt->agent, $prompt->prompt, $messages)),
+        $context = new ToolSelectionContext($prompt->agent, $prompt->prompt, $messages);
+
+        $resumedToolNames = $prompt->hasApprovalDecisions() ? $this->latestToolCallNames($messages) : null;
+
+        return array_values(array_filter(array_map(
+            fn ($tool) => $this->resolveTool($tool, $context, $resumedToolNames),
             $tools,
-        );
+        ), fn ($tool): bool => $tool !== null));
+    }
+
+    /**
+     * @param  array<int, Message>  $messages
+     * @return list<string>
+     */
+    protected function latestToolCallNames(array $messages): array
+    {
+        foreach (array_reverse($messages) as $message) {
+            if ($message instanceof AssistantMessage) {
+                return $message->toolCalls->pluck('name')->all();
+            }
+        }
+
+        return [];
     }
 
     /**
      * Resolve a tool returned by the agent into a native tool instance when needed.
+     *
+     * @param  list<string>|null  $resumedToolNames
      */
-    protected function resolveTool(mixed $tool, string|array|ToolSelectionContext|null $state = null): mixed
+    protected function resolveTool(mixed $tool, ToolSelectionContext $context, ?array $resumedToolNames = null): mixed
     {
         return match (true) {
             $tool instanceof Agent => new AgentTool($tool),
             $tool instanceof Tool => $tool,
             $tool instanceof ToolSearch => $tool->withTools(
-                array_map(fn ($nested) => $this->resolveTool($nested, $state), $tool->tools),
+                array_values(array_filter(
+                    array_map(fn ($nested) => $this->resolveTool($nested, $context, $resumedToolNames), $tool->tools),
+                    fn ($nested): bool => $nested !== null,
+                )),
             ),
-            $tool instanceof ToolSelector => $tool->select($state ?? throw new InvalidArgumentException('Tool selection requires state.')),
+            $tool instanceof ToolSelector => $resumedToolNames === null
+                ? $tool->select($context)
+                : $tool->resume($resumedToolNames),
             McpTool::supports($tool) => new McpTool($tool),
             McpServerTool::supports($tool) => new McpServerTool($tool),
             default => $tool,

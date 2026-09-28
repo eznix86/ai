@@ -18,6 +18,8 @@ final class ToolSelectorAgent implements Agent, HasMiddleware, HasTools
 
     public array $providerOptions = [];
 
+    public array $stepTools = [];
+
     public function __construct(private ?ToolSelector $selector = null) {}
 
     public function instructions(): string
@@ -39,6 +41,7 @@ final class ToolSelectorAgent implements Agent, HasMiddleware, HasTools
     {
         return [function (PendingStep $step, Closure $next) {
             $this->providerOptions[] = $step->options?->providerOptions($step->provider);
+            $this->stepTools[] = $step->tools;
 
             return $next($step);
         }];

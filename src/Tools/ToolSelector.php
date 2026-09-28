@@ -5,10 +5,12 @@ namespace Laravel\Ai\Tools;
 use Closure;
 use InvalidArgumentException;
 use Laravel\Ai\Classification;
+use Laravel\Ai\Classification\Boolean;
 use Laravel\Ai\Classification\Choice;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Providers\Provider;
+use Laravel\Ai\Responses\Data\BooleanAnswer;
 use Laravel\Ai\Responses\Data\ChoiceAnswer;
 use Laravel\SerializableClosure\SerializableClosure;
 use LogicException;
@@ -97,12 +99,15 @@ final class ToolSelector
         return $this;
     }
 
-    public function select(string|array|ToolSelectionContext $state): Tool
+    public function select(string|array|ToolSelectionContext $state): ?Tool
     {
         $state = $this->resolveState($state);
 
         $classification = Classification::of($state)
-            ->question('tool', new Choice($this->instructions, $this->options()))
+            ->questions([
+                'applies' => $this->applies(),
+                'tool' => new Choice($this->instructions, $this->options()),
+            ])
             ->timeout($this->timeout);
 
         $classification->withProviderOptions(
@@ -111,12 +116,17 @@ final class ToolSelector
                 : $this->providerOptions
         );
 
-        $answer = $classification
-            ->classify($this->provider, $this->model)
-            ->answer('tool');
+        $response = $classification->classify($this->provider, $this->model);
 
-        if (! $answer instanceof ChoiceAnswer) {
-            throw new LogicException('Tool selection requires a choice answer.');
+        $applies = $response->answer('applies');
+        $answer = $response->answer('tool');
+
+        if (! $applies instanceof BooleanAnswer || ! $answer instanceof ChoiceAnswer) {
+            throw new LogicException('Tool selection requires a boolean and a choice answer.');
+        }
+
+        if (! $applies->isTrue()) {
+            return null;
         }
 
         foreach ($this->tools as $tool) {
@@ -126,6 +136,18 @@ final class ToolSelector
         }
 
         throw new InvalidArgumentException("Classification selected an unknown tool [{$answer->choice}].");
+    }
+
+    /** @param  list<string>  $toolNames */
+    public function resume(array $toolNames): ?Tool
+    {
+        foreach ($this->tools as $tool) {
+            if (in_array(ToolNameResolver::resolve($tool), $toolNames, true)) {
+                return $tool;
+            }
+        }
+
+        return null;
     }
 
     protected function resolveState(string|array|ToolSelectionContext $state): string|array
@@ -143,6 +165,16 @@ final class ToolSelector
         }
 
         return $state->prompt;
+    }
+
+    protected function applies(): Boolean
+    {
+        $actions = implode(' ', $this->options());
+
+        return new Boolean('Does the user need one of the listed actions to be carried out?', [
+            'true' => "The user needs one of these actions to be carried out: {$actions}",
+            'false' => "The user wants only an answer, advice, an explanation or a draft, and no action is carried out: {$actions}",
+        ]);
     }
 
     /**
