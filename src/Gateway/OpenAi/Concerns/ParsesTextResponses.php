@@ -67,18 +67,6 @@ trait ParsesTextResponses
     }
 
     /**
-     * Serialize a tool result output value to a string.
-     */
-    protected function serializeToolResultOutput(mixed $output): string
-    {
-        return match (true) {
-            is_string($output) => $output,
-            is_array($output) => (string) json_encode($output),
-            default => (string) $output,
-        };
-    }
-
-    /**
      * Extract the text content from the output array.
      */
     protected function extractText(array $output): string

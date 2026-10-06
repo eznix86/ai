@@ -56,6 +56,18 @@ class ToolResult implements Arrayable, JsonSerializable
     }
 
     /**
+     * Get the result as a string suitable for sending back to a provider.
+     */
+    public function text(): string
+    {
+        return match (true) {
+            is_string($this->result) => $this->result,
+            is_array($this->result) => (string) json_encode($this->result, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+            default => strval($this->result),
+        };
+    }
+
+    /**
      * Get the instance as an array, only including the denied and failed keys when they apply.
      */
     public function toArray(): array

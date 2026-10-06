@@ -57,6 +57,7 @@ dataset('file-search-providers', [
 
 dataset('reranking-providers', [
     'cohere' => ['cohere', 'COHERE_API_KEY'],
+    'openrouter' => ['openrouter', 'OPENROUTER_API_KEY'],
     'voyageai' => ['voyageai', 'VOYAGEAI_API_KEY'],
 ]);
 

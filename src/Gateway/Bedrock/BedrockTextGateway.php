@@ -760,7 +760,7 @@ class BedrockTextGateway implements EmbeddingGateway, StepTextGateway
                 'toolResult' => [
                     'toolUseId' => $toolResult->id,
                     'content' => [
-                        ['text' => is_string($toolResult->result) ? $toolResult->result : json_encode($toolResult->result)],
+                        ['text' => $toolResult->text()],
                     ],
                 ],
             ], $toolResults),
@@ -868,7 +868,7 @@ class BedrockTextGateway implements EmbeddingGateway, StepTextGateway
                 'toolResult' => [
                     'toolUseId' => $toolResult->id,
                     'content' => [
-                        ['text' => is_string($toolResult->result) ? $toolResult->result : json_encode($toolResult->result)],
+                        ['text' => $toolResult->text()],
                     ],
                 ],
             ];

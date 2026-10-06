@@ -67,3 +67,13 @@ test('tool result reports its error only when the call did not succeed', functio
         ->and((new ToolResult('id', 'name', [], 'Rejected', denied: true))->error())->toBe('Rejected')
         ->and((new ToolResult('id', 'name', [], ['code' => 500], failed: true))->error())->toBeNull();
 });
+
+test('tool result text serializes array results without escaping slashes or unicode', function (): void {
+    expect((new ToolResult('id', 'name', [], ['url' => 'https://example.com/report', 'city' => 'Genève']))->text())
+        ->toBe('{"url":"https://example.com/report","city":"Genève"}');
+});
+
+test('tool result text passes through strings and casts everything else', function (): void {
+    expect((new ToolResult('id', 'name', [], 'https://example.com/report'))->text())->toBe('https://example.com/report')
+        ->and((new ToolResult('id', 'name', [], 72))->text())->toBe('72');
+});
