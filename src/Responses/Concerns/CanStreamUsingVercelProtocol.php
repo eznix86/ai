@@ -69,9 +69,10 @@ trait CanStreamUsingVercelProtocol
                                 'type' => 'tool-approval-request',
                                 'toolCallId' => $pendingApproval->id,
                                 'approvalId' => $pendingApproval->id,
-                                'reason' => $pendingApproval->reason,
-                                ...($pendingApproval->data === null ? [] : ['approvalDescriptor' => $pendingApproval->data]),
-                                ...($pendingApproval->schema === null ? [] : ['inputSchema' => $pendingApproval->schema]),
+                                ...array_filter([
+                                    'reason' => $pendingApproval->reason,
+                                    'approvalDescriptor' => array_filter(['schema' => $pendingApproval->schema, 'data' => $pendingApproval->data]) ?: null,
+                                ]),
                             ]);
                         }
 

@@ -99,6 +99,24 @@ test('a submission changes only the keys it names, leaving the rest of the call 
         ]);
 });
 
+test('a submission ignores keys the tool did not ask for', function () {
+    Http::fake([
+        'api.anthropic.com/*' => Http::sequence()
+            ->push(interactiveToolCall('InteractiveChoiceTool', ['question' => 'Which plan?', 'options' => ['Basic', 'Pro']]))
+            ->push(interactiveText('Good choice.')),
+    ]);
+
+    $paused = (new RememberingInteractiveAgent)->forUser((object) ['id' => 1])->prompt('Ask me something.', provider: 'anthropic');
+
+    $resumed = (new RememberingInteractiveAgent)
+        ->continue($paused->conversationId, (object) ['id' => 1])
+        ->prompt(Decisions::from([
+            'toolu_1' => Decision::submit(['answer' => 'Pro', 'question' => 'Injected']),
+        ]), provider: 'anthropic');
+
+    expect($resumed->toolResults->firstWhere('id', 'toolu_1')->arguments['question'])->toBe('Which plan?');
+});
+
 test('the data a tool returns reaches the client but never the model', function () {
     Http::fake([
         'api.anthropic.com/*' => Http::sequence()
@@ -230,7 +248,7 @@ test('a tool that needs both values and approval asks for the values first', fun
     $paused = (new RememberingInteractiveAgent)->forUser((object) ['id' => 1])->prompt('Where am I?', provider: 'anthropic');
 
     expect($paused->pendingApprovals->sole()->isInteractive())->toBeTrue()
-        ->and($paused->pendingApprovals->sole()->reason)->toBeNull();
+        ->and($paused->pendingApprovals->sole()->reason)->toBe('Uses your location.');
 });
 
 test('a streamed tool result event carries the data the tool returned', function () {

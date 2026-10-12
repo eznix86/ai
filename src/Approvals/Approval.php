@@ -25,25 +25,6 @@ class Approval
     }
 
     /**
-     * Create a pause waiting on the values the given schema describes.
-     *
-     * @param  array<string, mixed>  $schema
-     * @param  array<string, mixed>|null  $data
-     */
-    public static function input(array $schema, ?array $data = null): self
-    {
-        return new self(schema: $schema, data: $data);
-    }
-
-    /**
-     * Determine whether the pause is waiting on values rather than a decision.
-     */
-    public function isInteractive(): bool
-    {
-        return $this->schema !== null;
-    }
-
-    /**
      * Get the keys a submission must provide.
      *
      * @return array<int, string>

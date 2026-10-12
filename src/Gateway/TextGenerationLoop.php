@@ -422,7 +422,7 @@ class TextGenerationLoop
             $result = match (true) {
                 ! $tool instanceof Tool && $this->repairsToolCalls => new Response("Tool '{$toolCall->name}' does not exist. Available tools: {$this->availableToolNames($tools)}."),
                 $isFinalStep => new Response('The agent reached its maximum number of steps without running this tool call.'),
-                default => $this->executeTool($tool, $toolCall->arguments, $toolCall->id, $context),
+                default => $this->invokeTool($tool, $toolCall->arguments, $toolCall->id, $context),
             };
 
             return new ToolResult(
@@ -520,11 +520,11 @@ class TextGenerationLoop
                 throw new NoSuchToolException($toolCall->name);
             }
 
-            $arguments = $this->argumentsForDecision($decision, $toolCall);
+            $arguments = $this->argumentsForDecision($decision, $toolCall, $tool);
             $failed = false;
 
             try {
-                $result = $this->executeTool($tool, $arguments, $toolCall->id, $context);
+                $result = $this->invokeTool($tool, $arguments, $toolCall->id, $context);
             } catch (Throwable $exception) {
                 $failed = true;
                 $result = new Response('The tool call failed: '.$exception->getMessage());
@@ -549,11 +549,15 @@ class TextGenerationLoop
      *
      * @return array<string, mixed>
      */
-    protected function argumentsForDecision(Decision $decision, ToolCall $toolCall): array
+    protected function argumentsForDecision(Decision $decision, ToolCall $toolCall, Tool $tool): array
     {
-        return $decision->isSubmitted()
-            ? [...$toolCall->arguments, ...($decision->arguments ?? [])]
-            : $decision->arguments ?? $toolCall->arguments;
+        if (! $decision->isSubmitted()) {
+            return $decision->arguments ?? $toolCall->arguments;
+        }
+
+        $properties = $this->approvalForTool($tool, $toolCall)?->schema['properties'] ?? [];
+
+        return [...$toolCall->arguments, ...array_intersect_key($decision->arguments ?? [], $properties)];
     }
 
     /**
@@ -630,13 +634,13 @@ class TextGenerationLoop
     {
         $request = new Request($toolCall->arguments, $toolCall->id);
 
+        $approval = $tool instanceof Approvable ? $tool->shouldRequestApproval($request) : null;
+
         if ($tool instanceof NeedsInput && ($schema = $this->outstandingInput($tool, $request)) !== null) {
-            return Approval::input($schema);
+            return new Approval($approval?->reason, $schema, $approval?->data);
         }
 
-        return $tool instanceof Approvable
-            ? $tool->shouldRequestApproval($request)
-            : null;
+        return $approval;
     }
 
     /**

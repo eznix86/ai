@@ -212,8 +212,28 @@ test('a pause emits its payload as the approval descriptor', function () {
         'type' => 'tool-approval-request',
         'toolCallId' => 'call-1',
         'approvalId' => 'call-1',
-        'reason' => null,
-        'approvalDescriptor' => ['options' => ['Basic', 'Pro']],
+        'approvalDescriptor' => ['data' => ['options' => ['Basic', 'Pro']]],
+    ]);
+});
+
+test('a pause waiting on values emits its schema within the approval descriptor', function () {
+    $schema = ['type' => 'object', 'properties' => ['answer' => ['type' => 'string']], 'required' => ['answer']];
+
+    $parts = vercelProtocolParts([
+        new StreamStart('msg-1', 'anthropic', 'claude-sonnet-4-6', time()),
+        new ToolCall('event-1', new Data\ToolCall('call-1', 'PickPlan', []), time()),
+        new ToolApprovalRequest('event-2', collect([
+            new PendingApproval('call-1', 'PickPlan', [], 'Pick a plan.', schema: $schema),
+        ]), time()),
+        new StreamEnd('event-3', 'tool_calls', new Usage, time()),
+    ]);
+
+    expect($parts[3])->toBe([
+        'type' => 'tool-approval-request',
+        'toolCallId' => 'call-1',
+        'approvalId' => 'call-1',
+        'reason' => 'Pick a plan.',
+        'approvalDescriptor' => ['schema' => $schema],
     ]);
 });
 
